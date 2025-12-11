@@ -3,7 +3,7 @@ const cors = require("cors");
 const app = express();
 const port = process.env.PORT || 3000;
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // middle ware
 app.use(express.json());
@@ -38,7 +38,18 @@ async function run() {
       const result = await issuesCollection
         .find(query)
         .sort({ createdAt: -1 })
+        .limit(6)
         .toArray();
+      res.send({ success: true, result });
+    });
+
+    // get issue by id api
+
+    app.get("/issue/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await issuesCollection.findOne(query);
+
       res.send({ success: true, result });
     });
 
