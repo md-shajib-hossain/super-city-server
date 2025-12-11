@@ -32,6 +32,15 @@ async function run() {
       const result = await issuesCollection.find().toArray();
       res.send(result);
     });
+    // resolved issue get api, sorted by status [resolved]
+    app.get("/", async (req, res) => {
+      const query = { status: "resolved" };
+      const result = await issuesCollection
+        .find(query)
+        .sort({ createdAt: -1 })
+        .toArray();
+      res.send({ success: true, result });
+    });
 
     // all issues post api
     app.post("/all-issues", async (req, res) => {
