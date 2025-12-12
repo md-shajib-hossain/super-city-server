@@ -29,8 +29,15 @@ async function run() {
 
     // all issues get api
     app.get("/all-issues", async (req, res) => {
-      const result = await issuesCollection.find().toArray();
-      res.send(result);
+      const { limit = 0, skip = 0 } = req.query;
+      const result = await issuesCollection
+        .find()
+        .limit(Number(limit))
+        .skip(Number(skip))
+        .toArray();
+      const count = await issuesCollection.countDocuments();
+      console.log(count, "eta dorkar");
+      res.send({ result, total: count });
     });
     // resolved issue get api, sorted by status [resolved]
     app.get("/", async (req, res) => {
