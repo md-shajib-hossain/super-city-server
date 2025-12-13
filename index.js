@@ -20,14 +20,51 @@ const client = new MongoClient(uri, {
   },
 });
 
+//
+
+//
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     const db = client.db("super_city_db");
     const issuesCollection = db.collection("issues");
+    // GET /api/issues
+    // ভালো নাম দাও (যেমন: /api/issues)
+    app.get("/all-issues", async (req, res) => {
+      const {
+        limit = 8,
+        skip = 0,
+        search,
+        status,
+        priority,
+        category,
+      } = req.query;
 
-    // all issues get api
+      let filter = {};
+
+      if (search && typeof search === "string" && search.trim() !== "") {
+        filter.$or = [
+          { title: { $regex: search, $options: "i" } },
+          { "location.address": { $regex: search, $options: "i" } },
+        ];
+      }
+      if (status) filter.status = status;
+      if (priority) filter.priority = priority;
+      if (category) filter.category = category;
+
+      const result = await issuesCollection
+        .find(filter)
+        .limit(Number(limit))
+        .skip(Number(skip))
+        .sort({ createdAt: -1 })
+        .toArray();
+
+      const total = await issuesCollection.countDocuments(filter);
+
+      res.send({ result, total });
+    });
+    // all issues get api with pagination scope
     app.get("/all-issues", async (req, res) => {
       const { limit = 0, skip = 0 } = req.query;
       const result = await issuesCollection
@@ -54,6 +91,8 @@ async function run() {
 
     app.get("/issue/:id", async (req, res) => {
       const id = req.params.id;
+      console.log("id ki pacchi dekhi", id, typeof id); // id string pacchi
+
       const query = { _id: new ObjectId(id) };
       const result = await issuesCollection.findOne(query);
 
