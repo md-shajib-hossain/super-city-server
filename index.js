@@ -9,6 +9,11 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 app.use(express.json());
 app.use(cors());
 
+// custom middleware , fb token
+const verifyToken = (req, res, next) => {
+  console.log("headers in the middleware", req.headers?.authorization);
+};
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.xg4rh8d.mongodb.net/?appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -29,8 +34,8 @@ async function run() {
     // await client.connect();
     const db = client.db("super_city_db");
     const issuesCollection = db.collection("issues");
-    // GET /api/issues
-    // ভালো নাম দাও (যেমন: /api/issues)
+    const userCollection = db.collection("users");
+    // GET all-issues by search
     app.get("/all-issues", async (req, res) => {
       const {
         limit = 8,
@@ -91,8 +96,6 @@ async function run() {
 
     app.get("/issue/:id", async (req, res) => {
       const id = req.params.id;
-      console.log("id ki pacchi dekhi", id, typeof id); // id string pacchi
-
       const query = { _id: new ObjectId(id) };
       const result = await issuesCollection.findOne(query);
 
@@ -104,6 +107,43 @@ async function run() {
       const issue = req.body;
       const result = await issuesCollection.insertOne(issue);
       res.send(result);
+    });
+
+    // store user in usercollection
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      user.role = "user";
+      user.createdAt = new Date();
+      const email = user.email;
+      const userExists = await userCollection.findOne({ email });
+
+      if (userExists) {
+        return res.send({ message: "user exists" });
+      }
+
+      const result = await userCollection.insertOne(user);
+      res.send(result);
+    });
+
+    // likes ccount increase api
+    app.patch("/all-issues/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { likes } = req.body;
+        console.log(likes, "likes barte hobe");
+
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: { likes: Number(likes) + 1 },
+        };
+
+        const result = await issuesCollection.updateOne(filter, updateDoc);
+
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to update likes" });
+      }
     });
 
     // Send a ping to confirm a successful connection
