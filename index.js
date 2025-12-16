@@ -35,6 +35,7 @@ async function run() {
     const db = client.db("super_city_db");
     const issuesCollection = db.collection("issues");
     const userCollection = db.collection("users");
+    const timelineCollection = db.collection("timeline");
     // GET all-issues by search
     app.get("/all-issues", async (req, res) => {
       const {
@@ -102,6 +103,29 @@ async function run() {
       res.send({ success: true, result });
     });
 
+    // get my-issue by user-email
+    app.get("/dashboard/my-issues/:email", async (req, res) => {
+      const { email } = req.params;
+      const query = { "createdBy.creatorEmail": email };
+      const result = await issuesCollection.find(query).toArray();
+      res.send({ success: true, result });
+    });
+
+    //  get user data from db
+    app.get("/users", async (req, res) => {
+      try {
+        const email = req.query.email;
+        if (!email) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Email is required" });
+        }
+        console.log(email, "this is from user email api");
+        res.json({ success: true });
+      } catch (error) {
+        console.log(error);
+      }
+    });
     // all issues post api
     app.post("/all-issues", async (req, res) => {
       const issue = req.body;
@@ -112,7 +136,7 @@ async function run() {
     // store user in usercollection
     app.post("/users", async (req, res) => {
       const user = req.body;
-      user.role = "user";
+      user.role = "citizen";
       user.createdAt = new Date();
       const email = user.email;
       const userExists = await userCollection.findOne({ email });
@@ -144,6 +168,31 @@ async function run() {
         console.error(error);
         res.status(500).send({ message: "Failed to update likes" });
       }
+    });
+
+    //  create an issue from report issue form, and save it in db
+    app.post("/all-issues/create-new-issue", async (req, res) => {
+      const issueData = req.body;
+      console.log(issueData, "this is from create issue api");
+      if (!issueData) {
+        return res.status(400).json({ message: "Issue data is required!" });
+      }
+      const issue = await issuesCollection.insertOne(issueData);
+      const issueTimeline = {
+        issueId: issue.insertedId,
+        status: "Pending",
+        likes: 0,
+        message: "issue reported by citizen.",
+        updatedBy: "citizen",
+        createAt: new Date(),
+      };
+      const createIssueTimeline = await timelineCollection.insertOne(
+        issueTimeline
+      );
+      res.json({
+        message: "Report an issue send successful.",
+        createIssueTimeline,
+      });
     });
 
     // Send a ping to confirm a successful connection
